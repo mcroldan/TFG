@@ -17,6 +17,7 @@ def calcPoseDirectly(tvecs, rvecs, i, j, marker_id, Debug=False):
     j = Índice del origen\n
     marker_id = Identificador del marcador del que queremos detectar su posición respecto al origen\n
     debug = Activa o desactiva el modo debug para recibir logs en la consola con los valores calculados\n'''
+
     #Hemos encontrado el origen en la imagen, calculamos la pose del ArUco respecto al origen
     pose_marker_to_camera = np.eye(4)
     pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
@@ -27,22 +28,17 @@ def calcPoseDirectly(tvecs, rvecs, i, j, marker_id, Debug=False):
 
     # rotation_camera_to_origin = np.transpose(rotation_origin_to_camera)
     # Para la traslación de la cámara, simplemente necesitamos volver negativa la del marcador. La explicación es trivial
-    translation_camera_to_origin = []
-    translation_camera_to_origin = [-1 * tvecs[j][0][0], -1 * tvecs[j][0][1], -1 * tvecs[j][0][2]]
 
-    pose_camera_to_origin = np.eye(4)
-    pose_camera_to_origin[0:3, 0:3] = rotation_origin_to_camera
-    pose_camera_to_origin[0:3, 3] = tvecs[j][0] # translation_camera_to_origin
+    pose_origin_to_camera = np.eye(4)
+    pose_origin_to_camera[0:3, 0:3] = rotation_origin_to_camera
+    pose_origin_to_camera[0:3, 3] = tvecs[j][0] # translation_camera_to_origin
+
+    pose_camera_to_origin = np.linalg.inv(pose_origin_to_camera)
 
     # pose = pose_marker_to_camera @ np.linalg.inv(pose_camera_to_origin)
-    pose = np.linalg.inv(pose_camera_to_origin) @ pose_marker_to_camera
+    pose = pose_camera_to_origin @ pose_marker_to_camera
     if Debug:
         t_matrix_to_angles(pose, marker_id, True)
-
-    """print("---------------------------")
-    print("MARKER {} TO ORIGIN".format(ids[i]))
-    print(pose)
-    print("---------------------------")"""
     return pose
 
 def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
@@ -54,23 +50,8 @@ def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
     j = Índice del marcador con la distancia calculada\n
     marker_id = Identificador del marcador del que queremos detectar su posición respecto al origen\n
     debug = Activa o desactiva el modo debug para recibir logs en la consola con los valores calculados\n'''
+    
     #No hemos encontrado el origen en la imagen, pero sí un marcador con la posición respecto al origen calculada
-
-    """pose_marker_to_camera = np.eye(4)
-    pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-    pose_marker_to_camera[0:3, 3] = tvecs[i][0]
-
-    rotation_known_to_camera = np.eye(3)
-    rotation_known_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[j][0]))[0]
-
-    rotation_camera_to_known = np.transpose(rotation_known_to_camera)
-    # Para la traslación de la cámara, simplemente necesitamos volver negativa la del marcador. La explicación es trivial
-    translation_camera_to_known = []
-    translation_camera_to_known = [-1 * tvecs[j][0][0], -1 * tvecs[j][0][1], -1 * tvecs[j][0][2]]
-
-    pose_camera_to_known = np.eye(4)
-    pose_camera_to_known[0:3, 0:3] = rotation_camera_to_known
-    pose_camera_to_known[0:3, 3] = translation_camera_to_known"""
     pose_marker_to_known = calcPoseDirectly(tvecs, rvecs, i, j, marker_ids[i][0])
 
     pose_known_to_origin = Poses[marker_ids[j][0]]
@@ -79,10 +60,6 @@ def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
     pose = pose_known_to_origin @ pose_marker_to_known
     if Debug:
         t_matrix_to_angles(pose, marker_ids[i][0], True)
-    """print("---------------------------")
-    print("MARKER {} TO ORIGIN".format(ids[i]))
-    print(pose)
-    print("---------------------------")"""
     return pose
 
 def calcPoseToTheCameraDirectly(tvecs, rvecs, i, marker_id):
