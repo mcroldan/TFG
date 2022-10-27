@@ -10,48 +10,43 @@ from scipy.spatial.transform import Rotation as R
 
 #asdf
 def calcPoseDirectly(tvecs, rvecs, i, j, marker_id, Debug=False):
-    '''Si disponemos de un marcador y el origen en pantalla, podemos hacer el cálculo de la pose entre ambos de forma directa.\n 
-    tvecs = Vectores de traslación detectados\n
-    rvecs = Vectores de rotación detectados\n
-    i = Índice del marcador del que queremos detectar su posición respecto al origen\n
-    j = Índice del origen\n
-    marker_id = Identificador del marcador del que queremos detectar su posición respecto al origen\n
-    debug = Activa o desactiva el modo debug para recibir logs en la consola con los valores calculados\n'''
+    '''If we have a marker and the origin on the screen, we can compute the pose of the marker relative to the origin directly
+    tvecs = Translation vectors detected relative to the camera\n
+    rvecs = Rotation vectors detected relative to the camera\n
+    i = Index of the marker that we will use to compute its pose relative to the origin\n
+    j = Index of the origin\n
+    marker_id = Identifier of the marker that we will use to compute its pose relative to the origin\n
+    debug = Enable / Disable debug mode. If enabled, you will get more information as logs in the console\n'''
 
-    #Hemos encontrado el origen en la imagen, calculamos la pose del ArUco respecto al origen
+    # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
     pose_marker_to_camera = np.eye(4)
     pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
     pose_marker_to_camera[0:3, 3] = tvecs[i][0]
 
-    rotation_origin_to_camera = np.eye(3)
-    rotation_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[j][0]))[0]
-
-    # rotation_camera_to_origin = np.transpose(rotation_origin_to_camera)
-    # Para la traslación de la cámara, simplemente necesitamos volver negativa la del marcador. La explicación es trivial
-
     pose_origin_to_camera = np.eye(4)
-    pose_origin_to_camera[0:3, 0:3] = rotation_origin_to_camera
+    pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[j][0]))[0]
     pose_origin_to_camera[0:3, 3] = tvecs[j][0] # translation_camera_to_origin
 
     pose_camera_to_origin = np.linalg.inv(pose_origin_to_camera)
 
-    # pose = pose_marker_to_camera @ np.linalg.inv(pose_camera_to_origin)
     pose = pose_camera_to_origin @ pose_marker_to_camera
     if Debug:
         t_matrix_to_angles(pose, marker_id, True)
+        print("")
+        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
     return pose
 
 def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
-    '''Si disponemos de un marcador y otro con la pose respecto al origen en pantalla, podemos hacer el cálculo de la pose entre ambos de forma indirecta.\n 
-    tvecs = Vectores de traslación detectados\n
-    rvecs = Vectores de rotación detectados\n
+    '''If we have two markers, one of them with its pose relative to the origin already calculated, we can get the first marker's pose relative to the origin indirectly.\n 
+    tvecs = Translation vectors detected relative to the camera\n
+    rvecs = Rotation vectors detected relative to the camera\n
     Poses = Diccionario con las poses calculadas entre un marcador y el origen
-    i = Índice del marcador del que queremos detectar su posición respecto al origen\n
-    j = Índice del marcador con la distancia calculada\n
-    marker_id = Identificador del marcador del que queremos detectar su posición respecto al origen\n
-    debug = Activa o desactiva el modo debug para recibir logs en la consola con los valores calculados\n'''
+    i = Index of the marker that we will use to compute its pose relative to the origin\n
+    j = Index of the marker with the pose relative to the origin already calculated\n
+    marker_id = Identifier of the marker that we will use to compute its pose relative to the origin\n
+    debug = Enable / Disable debug mode. If enabled, you will get more information as logs in the console\n'''
     
-    #No hemos encontrado el origen en la imagen, pero sí un marcador con la posición respecto al origen calculada
+    # We didn't find the world's origin in the image. However, we got a marker with its pose relative to the origin already computed.
     pose_marker_to_known = calcPoseDirectly(tvecs, rvecs, i, j, marker_ids[i][0])
 
     pose_known_to_origin = Poses[marker_ids[j][0]]
@@ -61,37 +56,6 @@ def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
     if Debug:
         t_matrix_to_angles(pose, marker_ids[i][0], True)
     return pose
-
-def calcPoseToTheCameraDirectly(tvecs, rvecs, i, marker_id):
-    # Store the translation (i.e. position) information
-        transform_translation_x = tvecs[i][0][0]
-        transform_translation_y = tvecs[i][0][1]
-        transform_translation_z = tvecs[i][0][2]
-
-        # Store the rotation information
-        rotation_matrix = np.eye(4)
-        rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-        r = R.from_matrix(rotation_matrix[0:3, 0:3])
-        quat = r.as_quat()   
-
-        # En rotation_matrix tenemos la matriz de rotación de la pose del ArUco Marker. Sin embargo, si le hacemos la inversa podemos obtener la de la cámara.
-        print('-----------------------------------------------------')
-        print('Marcador: {}'.format(marker_id))
-        camera_rotation_matrix = np.transpose(rotation_matrix)
-
-
-        # Para la traslación de la cámara, simplemente necesitamos volver negativa la del marcador. La explicación es trivial
-        camera_translation_vector = []
-        camera_translation_vector = [-1 * transform_translation_x, -1 * transform_translation_y, -1 * transform_translation_z]
-
-        T = np.copy(camera_rotation_matrix)
-        T[0:3,3] = camera_translation_vector
-
-        print("Matriz de rotación de la pose de la cámara:\n {}".format(camera_rotation_matrix))
-        print("Vector de traslación de la pose de la cámara: {}".format(camera_translation_vector))
-        print("Matriz T:\n {}\n".format(T[0:3,0:4]))
-
-        return T
     
 def euler_from_quaternion(x, y, z, w):
   """
@@ -144,3 +108,22 @@ def t_matrix_to_angles(pose, marker_id, Debug=False):
         print("pitch_y: {}".format(pitch_y))
         print("yaw_z: {}".format(yaw_z))
         print()
+
+def drawMarkerFeatures(img, corners):
+    ids = [1, 2, 3]
+    for(marker, id) in zip(corners, ids):
+        corners = marker.reshape(4, 2)
+        (topLeft, topRight, botRight, botLeft) = corners
+        
+        # We mark the corners and the center in red
+        cv2.circle(img, topLeft.astype(int), 1, (0,0,255), -1)
+        cv2.circle(img, topRight.astype(int), 1, (0,0,255), -1)
+        cv2.circle(img, botRight.astype(int), 1, (0,0,255), -1)
+        cv2.circle(img, botLeft.astype(int), 1, (0,0,255), -1)
+        cv2.circle(img, (int((topLeft[0] + botRight[0])/2), int((topLeft[1] + botRight[1])/2)), 1, (0,0,255), -1)
+
+        # We mark the outline in green
+        cv2.line(img, topLeft.astype(int), topRight.astype(int), (255, 0, 0), 2)
+        cv2.line(img, topLeft.astype(int), botLeft.astype(int), (255, 0, 0), 2)
+        cv2.line(img, botLeft.astype(int), botRight.astype(int), (255, 0, 0), 2)
+        cv2.line(img, botRight.astype(int), topRight.astype(int), (255, 0, 0), 2)

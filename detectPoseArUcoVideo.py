@@ -43,13 +43,13 @@ cv_file.release()
 aruco_marker_side_length = 0.08
 
 while True:
-    #path = './markers/'
+    path = './examples/'
     #path = '.'
     dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
     params = cv2.aruco.DetectorParameters_create()
-    #frame = cv2.imread('markers_detect.png', cv2.IMREAD_GRAYSCALE)
-    frame = vs.read()
-    frame = imutils.resize(frame, width=1080)
+    frame = cv2.imread(path + 'toy5.PNG', cv2.IMREAD_GRAYSCALE)
+    #frame = vs.read()
+    #frame = imutils.resize(frame, width=1080)
     dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
     params = cv2.aruco.DetectorParameters_create()
 

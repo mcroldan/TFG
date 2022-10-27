@@ -28,7 +28,7 @@ def drawMarkerFeatures(img, corners, ids):
 path = './markers/'
 dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 params = cv2.aruco.DetectorParameters_create()
-img = cv2.imread('markers_detect.jpg')
+img = cv2.imread('warped_marker.jpg')
 (corners, ids, rejected) = cv2.aruco.detectMarkers(img, dict, parameters=params)
 
 if len(corners) > 0:
