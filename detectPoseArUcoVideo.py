@@ -35,7 +35,8 @@ time.sleep(2.0)
 
 # Cargamos los parametros de la camara obtenidos en la calibración previamente
 cv_file = cv2.FileStorage(
-    'calibration_chessboard.yaml', cv2.FILE_STORAGE_READ) 
+    #'calibration_chessboard.yaml', cv2.FILE_STORAGE_READ) 
+    'calibration_chessboard_unity.yaml', cv2.FILE_STORAGE_READ)
 mtx = cv_file.getNode('K').mat()
 dst = cv_file.getNode('D').mat()
 cv_file.release()
@@ -47,7 +48,7 @@ while True:
     #path = '.'
     dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
     params = cv2.aruco.DetectorParameters_create()
-    frame = cv2.imread(path + 'toy5.PNG', cv2.IMREAD_GRAYSCALE)
+    frame = cv2.imread(path + 'toy1-angulo.PNG', cv2.IMREAD_COLOR)
     #frame = vs.read()
     #frame = imutils.resize(frame, width=1080)
     dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)

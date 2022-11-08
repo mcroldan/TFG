@@ -56,6 +56,39 @@ def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
     if Debug:
         t_matrix_to_angles(pose, marker_ids[i][0], True)
     return pose
+
+def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=False):
+    # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
+    pose_known_to_camera = np.eye(4)
+    pose_known_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
+    pose_known_to_camera[0:3, 3] = tvecs[marker_index][0]
+
+    if not marker_id[0] in Poses:
+        return
+
+    pose_known_to_origin = Poses[marker_id[0]]
+
+    pose_camera_to_known = np.linalg.inv(pose_known_to_camera)
+
+    pose = pose_known_to_origin @ pose_camera_to_known
+    if Debug:
+        t_matrix_to_angles(pose, marker_id[0], True)
+        print("")
+        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
+    return pose
+
+def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
+    # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
+    pose_origin_to_camera = np.eye(4)
+    pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
+    pose_origin_to_camera[0:3, 3] = tvecs[marker_index][0]
+
+    pose = np.linalg.inv(pose_origin_to_camera)
+    if Debug:
+        t_matrix_to_angles(pose, marker_ids[marker_index][0], True)
+        print("")
+        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
+    return pose
     
 def euler_from_quaternion(x, y, z, w):
   """
@@ -109,7 +142,9 @@ def t_matrix_to_angles(pose, marker_id, Debug=False):
         print("yaw_z: {}".format(yaw_z))
         print()
 
-def drawMarkerFeatures(img, corners):
+# (0,0,255) = red
+# (255,0,0) = green
+def drawMarkerFeatures(img, corners, color):
     ids = [1, 2, 3]
     for(marker, id) in zip(corners, ids):
         corners = marker.reshape(4, 2)
@@ -123,7 +158,7 @@ def drawMarkerFeatures(img, corners):
         cv2.circle(img, (int((topLeft[0] + botRight[0])/2), int((topLeft[1] + botRight[1])/2)), 1, (0,0,255), -1)
 
         # We mark the outline in green
-        cv2.line(img, topLeft.astype(int), topRight.astype(int), (255, 0, 0), 2)
-        cv2.line(img, topLeft.astype(int), botLeft.astype(int), (255, 0, 0), 2)
-        cv2.line(img, botLeft.astype(int), botRight.astype(int), (255, 0, 0), 2)
-        cv2.line(img, botRight.astype(int), topRight.astype(int), (255, 0, 0), 2)
+        cv2.line(img, topLeft.astype(int), topRight.astype(int), color, 2)
+        cv2.line(img, topLeft.astype(int), botLeft.astype(int), color, 2)
+        cv2.line(img, botLeft.astype(int), botRight.astype(int), color, 2)
+        cv2.line(img, botRight.astype(int), topRight.astype(int), color, 2)
