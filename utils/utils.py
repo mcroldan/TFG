@@ -9,23 +9,31 @@ import math
 from scipy.spatial.transform import Rotation as R
 
 #asdf
-def calcPoseDirectly(tvecs, rvecs, i, j, marker_id, Debug=False):
+def calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=False):
     '''If we have a marker and the origin on the screen, we can compute the pose of the marker relative to the origin directly
     tvecs = Translation vectors detected relative to the camera\n
     rvecs = Rotation vectors detected relative to the camera\n
-    i = Index of the marker that we will use to compute its pose relative to the origin\n
-    j = Index of the origin\n
+    marker_index = Index of the marker that we will use to compute its pose relative to the origin\n
+    found_index = Index of the origin\n
     marker_id = Identifier of the marker that we will use to compute its pose relative to the origin\n
     debug = Enable / Disable debug mode. If enabled, you will get more information as logs in the console\n'''
 
     # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
     pose_marker_to_camera = np.eye(4)
-    pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-    pose_marker_to_camera[0:3, 3] = tvecs[i][0]
+    pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
+    pose_marker_to_camera[0:3, 3] = tvecs[marker_index][0]
+
+    pose_marker_to_camera = correctInvertedPose(pose_marker_to_camera)
 
     pose_origin_to_camera = np.eye(4)
-    pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[j][0]))[0]
-    pose_origin_to_camera[0:3, 3] = tvecs[j][0] # translation_camera_to_origin
+    pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[found_index][0]))[0]
+    pose_origin_to_camera[0:3, 3] = tvecs[found_index][0] # translation_camera_to_origin
+
+    print("\n\n\nOriginal:")
+    print(pose_origin_to_camera)
+    pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
+    print("Corregida:")
+    print(pose_origin_to_camera, "\n\n\n\n")
 
     pose_camera_to_origin = np.linalg.inv(pose_origin_to_camera)
 
@@ -36,25 +44,25 @@ def calcPoseDirectly(tvecs, rvecs, i, j, marker_id, Debug=False):
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
     return pose
 
-def calcPoseIndirectly(tvecs, rvecs, i, j, Poses, marker_ids, Debug=False):
+def calcPoseIndirectly(tvecs, rvecs, marker_index, found_index, Poses, marker_ids, Debug=False):
     '''If we have two markers, one of them with its pose relative to the origin already calculated, we can get the first marker's pose relative to the origin indirectly.\n 
     tvecs = Translation vectors detected relative to the camera\n
     rvecs = Rotation vectors detected relative to the camera\n
     Poses = Diccionario con las poses calculadas entre un marcador y el origen
-    i = Index of the marker that we will use to compute its pose relative to the origin\n
-    j = Index of the marker with the pose relative to the origin already calculated\n
+    marker_index = Index of the marker that we will use to compute its pose relative to the origin\n
+    found_index = Index of the marker with the pose relative to the origin already calculated\n
     marker_id = Identifier of the marker that we will use to compute its pose relative to the origin\n
     debug = Enable / Disable debug mode. If enabled, you will get more information as logs in the console\n'''
     
     # We didn't find the world's origin in the image. However, we got a marker with its pose relative to the origin already computed.
-    pose_marker_to_known = calcPoseDirectly(tvecs, rvecs, i, j, marker_ids[i][0])
+    pose_marker_to_known = calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_ids[marker_index][0])
 
-    pose_known_to_origin = Poses[marker_ids[j][0]]
+    pose_known_to_origin = Poses[marker_ids[found_index][0]]
 
    # pose = pose_marker_to_camera @ pose_camera_to_known @ pose_known_to_origin
     pose = pose_known_to_origin @ pose_marker_to_known
     if Debug:
-        t_matrix_to_angles(pose, marker_ids[i][0], True)
+        t_matrix_to_angles(pose, marker_ids[marker_index][0], True)
     return pose
 
 def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=False):
@@ -62,6 +70,8 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
     pose_known_to_camera = np.eye(4)
     pose_known_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_known_to_camera[0:3, 3] = tvecs[marker_index][0]
+
+    pose_known_to_camera = correctInvertedPose(pose_known_to_camera)
 
     if not marker_id[0] in Poses:
         return
@@ -82,6 +92,8 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
     pose_origin_to_camera = np.eye(4)
     pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_origin_to_camera[0:3, 3] = tvecs[marker_index][0]
+
+    pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
 
     pose = np.linalg.inv(pose_origin_to_camera)
     if Debug:
@@ -162,3 +174,32 @@ def drawMarkerFeatures(img, corners, color):
         cv2.line(img, topLeft.astype(int), botLeft.astype(int), color, 2)
         cv2.line(img, botLeft.astype(int), botRight.astype(int), color, 2)
         cv2.line(img, botRight.astype(int), topRight.astype(int), color, 2)
+
+def cross(a:np.ndarray,b:np.ndarray)->np.ndarray:
+    return np.cross(a, b)
+
+def correctInvertedPose(Pose):
+    T = Pose[0:3, 3]
+    R = Pose[0:3, 0:3]
+
+    if 0 < R[1,1] < 1:
+        # If it gets here, the pose is flipped.
+
+        # Flip the axes. E.g., Y axis becomes [-y0, -y1, y2].
+        R *= np.array([
+            [ 1, -1,  1],
+            [ 1, -1,  1],
+            [-1,  1, -1],
+        ])
+        
+        # Fixup: rotate along the plane spanned by camera's forward (Z) axis and vector to marker's position
+        forward = np.array([0, 0, 1])
+        tnorm = T / np.linalg.norm(T)
+        axis = cross(tnorm, forward)
+        print("AGUA")
+        angle = -2*math.acos(tnorm @ forward)
+        R = cv2.Rodrigues(angle * axis)[0] @ R
+    
+    Pose[0:3, 3] = T
+    Pose[0:3, 0:3] = R
+    return Pose

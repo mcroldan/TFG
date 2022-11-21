@@ -24,8 +24,8 @@ dst = cv_file.getNode('D').mat()
 cv_file.release()
 
 aruco_marker_side_length = 0.037 #0.08
-Debug_Markers = True
-Debug_Camera = False
+Debug_Markers = False
+Debug_Camera = True
 
 # We initialize a dictionary to save the poses, a placeholder world origin, and the ArUco dictionary 
 path = '.'
@@ -104,7 +104,7 @@ while True:
                 #print("Direct, Origin:{}".format(origin))
                 utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
                 #print(ids[marker_index][0])
-    
+    time.sleep(0.1)
 # Display the resulting frame
     cv2.imshow("Camara", frame)
     key = cv2.waitKey(1) & 0xFF
