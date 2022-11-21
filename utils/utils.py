@@ -29,11 +29,7 @@ def calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=F
     pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[found_index][0]))[0]
     pose_origin_to_camera[0:3, 3] = tvecs[found_index][0] # translation_camera_to_origin
 
-    print("\n\n\nOriginal:")
-    print(pose_origin_to_camera)
-    pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
-    print("Corregida:")
-    print(pose_origin_to_camera, "\n\n\n\n")
+    #pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
 
     pose_camera_to_origin = np.linalg.inv(pose_origin_to_camera)
 
@@ -71,7 +67,7 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
     pose_known_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_known_to_camera[0:3, 3] = tvecs[marker_index][0]
 
-    pose_known_to_camera = correctInvertedPose(pose_known_to_camera)
+    #pose_known_to_camera = correctInvertedPose(pose_known_to_camera)
 
     if not marker_id[0] in Poses:
         return
@@ -81,11 +77,21 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
     pose_camera_to_known = np.linalg.inv(pose_known_to_camera)
 
     pose = pose_known_to_origin @ pose_camera_to_known
-    if Debug:
-        t_matrix_to_angles(pose, marker_id[0], True)
+
+    rotation_array = t_matrix_to_angles(pose, marker_id[0], Debug)
+    pose_dict = {'pos_x': pose[0, 3],
+                 'pos_y': pose[1, 3],
+                 'pos_z': pose[2, 3],
+                 'pitch_x': rotation_array[0],
+                 'roll_y': rotation_array[1],
+                 'yaw_z': rotation_array[2]}
+    if pose_dict['pitch_x'] > 0:
+
         print("")
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-    return pose
+        return pose, pose_dict
+    else:
+        return 0, 0
 
 def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
     # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
@@ -93,14 +99,27 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
     pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_origin_to_camera[0:3, 3] = tvecs[marker_index][0]
 
-    pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
+    #pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
 
     pose = np.linalg.inv(pose_origin_to_camera)
-    if Debug:
-        t_matrix_to_angles(pose, marker_ids[marker_index][0], True)
+
+    rotation_array = t_matrix_to_angles(pose, marker_ids[marker_index][0], Debug)
+    pose_dict = {'pos_x': pose[0, 3],
+                 'pos_y': pose[1, 3],
+                 'pos_z': pose[2, 3],
+                 'pitch_x': rotation_array[0],
+                 'roll_y': rotation_array[1],
+                 'yaw_z': rotation_array[2]}
+
+    print("")
+    #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
+    if pose_dict['pitch_x'] > 0:
+
         print("")
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-    return pose
+        return pose, pose_dict
+    else:
+        return 0, 0
     
 def euler_from_quaternion(x, y, z, w):
   """
@@ -153,6 +172,7 @@ def t_matrix_to_angles(pose, marker_id, Debug=False):
         print("pitch_y: {}".format(pitch_y))
         print("yaw_z: {}".format(yaw_z))
         print()
+    return([roll_x, pitch_y, yaw_z])
 
 # (0,0,255) = red
 # (255,0,0) = green
@@ -202,4 +222,10 @@ def correctInvertedPose(Pose):
     
     Pose[0:3, 3] = T
     Pose[0:3, 0:3] = R
+    return Pose
+
+def decimalToBinary(n):  
+    return bin(n).replace("0b", "")      
+
+def rectifyPoseForUnity(Pose):
     return Pose

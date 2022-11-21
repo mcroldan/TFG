@@ -1,16 +1,20 @@
 from multiprocessing.connection import wait
-from tkinter import Frame
-import numpy as np
 import cv2
 import time
 from imutils.video import VideoStream
 import imutils
-import math
-from scipy.spatial.transform import Rotation as R
 import time
+import json
 
 import utils.utils as utils
-import utils.outliers as outliers
+
+# We start the ZeroMQ socket to communicate with Unity. Python will be the client, which continously sends a 6x1 int array [coord_x, coord_y, coord_z, pitch_x, roll_y, yaw_z]
+"""context = zmq.Context()
+
+print("CONNECTING TO LOCALHOST SERVER...")
+socket = context.socket(zmq.REP)
+socket.connect("tcp://localhost:5555")
+print("CONNECTED!")"""
 
 # Starting the Camera
 vs = VideoStream(src=0).start()
@@ -25,7 +29,7 @@ cv_file.release()
 
 aruco_marker_side_length = 0.037 #0.08
 Debug_Markers = False
-Debug_Camera = True
+Debug_Camera = False
 
 # We initialize a dictionary to save the poses, a placeholder world origin, and the ArUco dictionary 
 path = '.'
@@ -80,15 +84,15 @@ while True:
                         # We found the world origin, so we can calculate the pose from the marker directly
                         Poses[ids[marker_index][0]] = utils.calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=Debug_Markers)
                         print("Direct")
-                        print(ids[marker_index][0])
-                        print(Poses[ids[marker_index][0]])
+                        #print(ids[marker_index][0])
+                        #print(Poses[ids[marker_index][0]])
                         #break
                     elif ids[found_index][0] in Poses:
                         # We found another marker with its pose relative to the origin already calculated. We can concatenate transformations to get the pose we need
                         Poses[ids[marker_index][0]] = utils.calcPoseIndirectly(tvecs, rvecs, marker_index, found_index, Poses, ids, Debug=Debug_Markers)
                         print("Indirect")
-                        print(ids[marker_index][0])
-                        print(Poses[ids[marker_index][0]])
+                        #print(ids[marker_index][0])
+                        #print(Poses[ids[marker_index][0]])
                         #break
                     #else:
                         # We didn't find anything, so we can't do any operation
@@ -97,13 +101,17 @@ while True:
                 # We aren't currently on the origin, but we have the pose of the current marker to the origin already calculated. That said, we can compute the pose of the
                 # camera with that relative pose.
                 #print("Indirect, Origin:{}".format(origin))
-                utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
+                _, pose_dict = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
                 #print(ids[marker_index][0])
                 #print(Poses[ids[marker_index][0]])
             else:
                 #print("Direct, Origin:{}".format(origin))
-                utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
+                _, pose_dict = utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
                 #print(ids[marker_index][0])
+            
+            if pose_dict != 0:
+                print(pose_dict)
+
     time.sleep(0.1)
 # Display the resulting frame
     cv2.imshow("Camara", frame)
