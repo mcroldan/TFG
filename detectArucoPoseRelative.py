@@ -3,18 +3,19 @@ import cv2
 import time
 from imutils.video import VideoStream
 import imutils
-import time
 import json
+import numpy as np
+import zmq
 
 import utils.utils as utils
 
 # We start the ZeroMQ socket to communicate with Unity. Python will be the client, which continously sends a 6x1 int array [coord_x, coord_y, coord_z, pitch_x, roll_y, yaw_z]
-"""context = zmq.Context()
+context = zmq.Context()
 
-print("CONNECTING TO LOCALHOST SERVER...")
-socket = context.socket(zmq.REP)
-socket.connect("tcp://localhost:5555")
-print("CONNECTED!")"""
+print("CREATING LOCALHOST SERVER...")
+socket = context.socket(zmq.PUB)
+socket.bind("tcp://127.0.0.1:5555")
+print("LISTENING ON PORT 5555")
 
 # Starting the Camera
 vs = VideoStream(src=0).start()
@@ -22,7 +23,7 @@ time.sleep(2.0)
 
 # Loading up the parameters obtained in the previous camera calibration
 cv_file = cv2.FileStorage(
-    'calibration_chessboard_camera.yaml', cv2.FILE_STORAGE_READ) 
+    'calibration_chessboard_new_camera.yaml', cv2.FILE_STORAGE_READ) 
 mtx = cv_file.getNode('K').mat()
 dst = cv_file.getNode('D').mat()
 cv_file.release()
@@ -36,16 +37,17 @@ path = '.'
 dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 params = cv2.aruco.DetectorParameters_create()
 Poses = {}
-origin = -1
-toy = 1
-while True:
-    # Loading the image / camera frame
-    frame = vs.read()
-    #path = './examples/'
-    
-    #frame = cv2.imread(path + 'toy2-camera.PNG')
+origin = 26
 
+while True:
+    frame_values = []
+    # Loading the image / camera frame
+
+    #path = './examples/'
+    #frame = cv2.imread(path + 'checkPose.PNG')
+    frame = vs.read()
     frame = imutils.resize(frame, height=1920, width=1080)
+    #frame = cv2.imread(path + 'toy2-camera.PNG')
 
     (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, dict, parameters=params, cameraMatrix=mtx, distCoeff=dst)
 
@@ -61,6 +63,7 @@ while True:
             origin = ids[0][0]
             print("Origen establecido en {}".format(origin))
 
+
         # Rotation and translation vectors
         rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(corners, aruco_marker_side_length, mtx, dst)
         # tvecs: Translation vector in 3D
@@ -69,7 +72,7 @@ while True:
         for marker_index, marker_id in enumerate(ids):
             if not marker_id[0] == origin:
                 #print("Looking into", marker_id[0])
-                if True: #not marker_id[0] in Poses:   
+                if not marker_id[0] in Poses:   
                     found_index = 0
                     Found = False
                     while found_index < len(ids) - 1 and not Found:
@@ -101,7 +104,11 @@ while True:
                 # We aren't currently on the origin, but we have the pose of the current marker to the origin already calculated. That said, we can compute the pose of the
                 # camera with that relative pose.
                 #print("Indirect, Origin:{}".format(origin))
-                _, pose_dict = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
+                pose_dict = 0
+                try:
+                    _, pose_dict = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
+                except TypeError:
+                    print("")
                 #print(ids[marker_index][0])
                 #print(Poses[ids[marker_index][0]])
             else:
@@ -110,9 +117,25 @@ while True:
                 #print(ids[marker_index][0])
             
             if pose_dict != 0:
-                print(pose_dict)
+                pose_dict = utils.rectifyPoseForUnity(pose_dict)
+                print(marker_id, origin, ":", pose_dict)
+                json_str = json.dumps(pose_dict, ensure_ascii=False)
+                socket.send_string(json_str)
+                #frame_values.append(list(pose_dict.values()))
+        """if len(frame_values) > 0:
+            print(frame_values)
+            median_pose = np.median(np.array(frame_values), axis=0)
+            print(median_pose)
 
-    time.sleep(0.1)
+            median_pose_dict =  {'pos_x': median_pose[0],
+                                'pos_y': median_pose[1],
+                                'pos_z': median_pose[2],
+                                'pitch_x': median_pose[3],
+                                'roll_y': median_pose[4],
+                                'yaw_z': median_pose[5]}"""
+        
+
+    time.sleep(.1)
 # Display the resulting frame
     cv2.imshow("Camara", frame)
     key = cv2.waitKey(1) & 0xFF
@@ -121,5 +144,5 @@ while True:
         break
 
 cv2.destroyAllWindows()
-vs.stop() 
+#vs.stop() 
 

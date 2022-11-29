@@ -1,10 +1,5 @@
-from multiprocessing.connection import wait
-from tkinter import Frame
 import numpy as np
 import cv2
-import time
-from imutils.video import VideoStream
-import imutils
 import math
 from scipy.spatial.transform import Rotation as R
 
@@ -85,7 +80,15 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
                  'pitch_x': rotation_array[0],
                  'roll_y': rotation_array[1],
                  'yaw_z': rotation_array[2]}
-    if pose_dict['pitch_x'] > 0:
+
+    """pose_dict = {'pos_x': pose[0, 3],
+                 'pos_y': pose[1, 3],
+                 'pos_z': pose[2, 3],
+                 'quat_x': rotation_array[0],
+                 'quat_y': rotation_array[1],
+                 'quat_z': rotation_array[2],
+                 'quat_w': rotation_array[3]}"""
+    if pose_dict and pose_dict['pitch_x'] > 0:
 
         print("")
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
@@ -111,12 +114,20 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
                  'roll_y': rotation_array[1],
                  'yaw_z': rotation_array[2]}
 
+    """pose_dict = {'pos_x': pose[0, 3],
+                 'pos_y': pose[1, 3],
+                 'pos_z': pose[2, 3],
+                 'quat_x': rotation_array[0],
+                 'quat_y': rotation_array[1],
+                 'quat_z': rotation_array[2],
+                 'quat_w': rotation_array[3]}"""
+
     print("")
     #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
     if pose_dict['pitch_x'] > 0:
 
         print("")
-        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
+    #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
         return pose, pose_dict
     else:
         return 0, 0
@@ -227,5 +238,21 @@ def correctInvertedPose(Pose):
 def decimalToBinary(n):  
     return bin(n).replace("0b", "")      
 
-def rectifyPoseForUnity(Pose):
-    return Pose
+def rectifyPoseForUnity(pose_dict):
+    # Z coord is inverted in Unity reference system. There exists a 180º offset in pitch_x. 
+    # pose_dict = {pos_x, pos_y, pos_z, pitch_x, roll_y, yaw_z}
+    for k, v in pose_dict.items():
+        pose_dict[k] = round(v, 3)
+
+    #pose_dict['pos_z'] = 0 - pose_dict['pos_z']
+    pose_dict['yaw_z'] += 180
+    #pose_dict['roll_y'] = pose_dict['yaw_z'] - 90
+
+        #pose_dict['pos_x'] = 0 - pose_dict['pos_x']
+    #pose_dict['pos_y'] = 0 - pose_dict['pos_y']
+    #pose_dict['pos_z'] = 0 - pose_dict['pos_z']
+    #pose_dict['pitch_x'] += 180
+    #pose_dict['roll_y'] += 180
+    #pose_dict['yaw_z'] += 180
+
+    return pose_dict
