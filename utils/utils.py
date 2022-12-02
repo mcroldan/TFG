@@ -31,7 +31,7 @@ def calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=F
     pose = pose_camera_to_origin @ pose_marker_to_camera
     if Debug:
         t_matrix_to_angles(pose, marker_id, True)
-        print("")
+        #print("")
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
     return pose
 
@@ -73,7 +73,9 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
 
     pose = pose_known_to_origin @ pose_camera_to_known
 
-    rotation_array = t_matrix_to_angles(pose, marker_id[0], Debug)
+    pose = LHMatrixFromRHMatrix(pose)
+
+    rotation_array, rotation_array_quat = t_matrix_to_angles(pose, marker_id[0], Debug)
     pose_dict = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
                  'pos_z': pose[2, 3],
@@ -81,20 +83,22 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
                  'roll_y': rotation_array[1],
                  'yaw_z': rotation_array[2]}
 
-    """pose_dict = {'pos_x': pose[0, 3],
+    pose_dict_quat = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
                  'pos_z': pose[2, 3],
-                 'quat_x': rotation_array[0],
-                 'quat_y': rotation_array[1],
-                 'quat_z': rotation_array[2],
-                 'quat_w': rotation_array[3]}"""
-    if pose_dict and pose_dict['pitch_x'] > 0:
+                 'quat_x': rotation_array_quat[0],
+                 'quat_y': rotation_array_quat[1],
+                 'quat_z': rotation_array_quat[2],
+                 'quat_w': rotation_array_quat[3]}
+    if pose_dict_quat: #and pose_dict_quat['quat_w'] > 0.009:
 
-        print("")
+        print("\nINLIER:\n", pose_dict_quat, "\n", pose_dict, "\n")
         #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-        return pose, pose_dict
+        return pose, pose_dict, pose_dict_quat
     else:
-        return 0, 0
+        if pose_dict_quat['quat_w'] <= 0.009:
+            print("\nDETECTADO ERROR:\n", pose_dict_quat, "\n", pose_dict, "\n")
+        return 0, 0, 0
 
 def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
     # We found the world's origin in the image, so we can calculate the AruCo's pose relative to the origin directly.
@@ -106,7 +110,9 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
 
     pose = np.linalg.inv(pose_origin_to_camera)
 
-    rotation_array = t_matrix_to_angles(pose, marker_ids[marker_index][0], Debug)
+    pose = LHMatrixFromRHMatrix(pose)
+
+    rotation_array, rotation_array_quat = t_matrix_to_angles(pose, marker_ids[marker_index][0], Debug)
     pose_dict = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
                  'pos_z': pose[2, 3],
@@ -114,23 +120,25 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
                  'roll_y': rotation_array[1],
                  'yaw_z': rotation_array[2]}
 
-    """pose_dict = {'pos_x': pose[0, 3],
+    pose_dict_quat = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
                  'pos_z': pose[2, 3],
-                 'quat_x': rotation_array[0],
-                 'quat_y': rotation_array[1],
-                 'quat_z': rotation_array[2],
-                 'quat_w': rotation_array[3]}"""
+                 'quat_x': rotation_array_quat[0],
+                 'quat_y': rotation_array_quat[1],
+                 'quat_z': rotation_array_quat[2],
+                 'quat_w': rotation_array_quat[3]}
 
-    print("")
+    #print("")
     #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-    if pose_dict['pitch_x'] > 0:
+    if pose_dict_quat: #and pose_dict_quat['quat_w'] > 0.009:
 
-        print("")
+        #print("")
     #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-        return pose, pose_dict
+        return pose, pose_dict, pose_dict_quat
     else:
-        return 0, 0
+        if pose_dict_quat['quat_w'] <= 0.009:
+            print("\nDETECTADO ERROR:\n", pose_dict_quat, "\n", pose_dict, "\n")
+        return 0, 0, 0
     
 def euler_from_quaternion(x, y, z, w):
   """
@@ -183,7 +191,7 @@ def t_matrix_to_angles(pose, marker_id, Debug=False):
         print("pitch_y: {}".format(pitch_y))
         print("yaw_z: {}".format(yaw_z))
         print()
-    return([roll_x, pitch_y, yaw_z])
+    return([roll_x, pitch_y, yaw_z], [quat[0], quat[1], quat[2], quat[3]])
 
 # (0,0,255) = red
 # (255,0,0) = green
@@ -245,8 +253,9 @@ def rectifyPoseForUnity(pose_dict):
         pose_dict[k] = round(v, 3)
 
     #pose_dict['pos_z'] = 0 - pose_dict['pos_z']
-    pose_dict['yaw_z'] += 180
-    #pose_dict['roll_y'] = pose_dict['yaw_z'] - 90
+    #pose_dict['pitch_x'] -= 180
+    #pose_dict['yaw_z'] = (pose_dict['yaw_z'] + 180)
+    #pose_dict['roll_y'] = (pose_dict['roll_y'] + 180)
 
         #pose_dict['pos_x'] = 0 - pose_dict['pos_x']
     #pose_dict['pos_y'] = 0 - pose_dict['pos_y']
@@ -256,3 +265,32 @@ def rectifyPoseForUnity(pose_dict):
     #pose_dict['yaw_z'] += 180
 
     return pose_dict
+
+def LHMatrixFromRHMatrix(rhm):
+    lhm = np.eye(4)
+    
+    # Column 0.
+    lhm[0, 0] =  rhm[0, 0]
+    lhm[1, 0] =  rhm[1, 0]
+    lhm[2, 0] = -rhm[2, 0]
+    lhm[3, 0] =  rhm[3, 0]
+    
+    # Column 1.
+    lhm[0, 1] =  rhm[0, 1]
+    lhm[1, 1] =  rhm[1, 1]
+    lhm[2, 1] = -rhm[2, 1]
+    lhm[3, 1] =  rhm[3, 1]
+    
+    # Column 2.
+    lhm[0, 2] = -rhm[0, 2]
+    lhm[1, 2] = -rhm[1, 2]
+    lhm[2, 2] =  rhm[2, 2]
+    lhm[3, 2] = -rhm[3, 2]
+    
+    # Column 3.
+    lhm[0, 3] =  rhm[0, 3]
+    lhm[1, 3] =  rhm[1, 3]
+    lhm[2, 3] = -rhm[2, 3]
+    lhm[3, 3] =  rhm[3, 3]
+    
+    return lhm

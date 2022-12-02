@@ -38,13 +38,13 @@ dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 params = cv2.aruco.DetectorParameters_create()
 Poses = {}
 origin = 26
+frame_values = []
 
 while True:
-    frame_values = []
     # Loading the image / camera frame
 
     #path = './examples/'
-    #frame = cv2.imread(path + 'checkPose.PNG')
+    #frame = cv2.imread(path + 'Z30cm.JPEG')
     frame = vs.read()
     frame = imutils.resize(frame, height=1920, width=1080)
     #frame = cv2.imread(path + 'toy2-camera.PNG')
@@ -106,38 +106,45 @@ while True:
                 #print("Indirect, Origin:{}".format(origin))
                 pose_dict = 0
                 try:
-                    _, pose_dict = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
+                    _, pose_dict, pose_dict_quat = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
                 except TypeError:
                     print("")
                 #print(ids[marker_index][0])
                 #print(Poses[ids[marker_index][0]])
             else:
                 #print("Direct, Origin:{}".format(origin))
-                _, pose_dict = utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
+                _, pose_dict, pose_dict_quat = utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
                 #print(ids[marker_index][0])
             
             if pose_dict != 0:
-                pose_dict = utils.rectifyPoseForUnity(pose_dict)
-                print(marker_id, origin, ":", pose_dict)
-                json_str = json.dumps(pose_dict, ensure_ascii=False)
-                socket.send_string(json_str)
-                #frame_values.append(list(pose_dict.values()))
-        """if len(frame_values) > 0:
-            print(frame_values)
-            median_pose = np.median(np.array(frame_values), axis=0)
-            print(median_pose)
+                pose_dict_quat = utils.rectifyPoseForUnity(pose_dict_quat)
+                frame_values.append(list(pose_dict_quat.values()))
 
+                """print(marker_id, origin, ":", pose_dict_quat)
+                json_str = json.dumps(pose_dict_quat, ensure_ascii=False)
+                socket.send_string(json_str)
+                #frame_values.append(list(pose_dict.values()))"""
+
+        if len(frame_values) >= 10:
+            #print(frame_values)
+            median_pose = np.median(np.array(frame_values), axis=0)
+            #print(median_pose)
             median_pose_dict =  {'pos_x': median_pose[0],
                                 'pos_y': median_pose[1],
                                 'pos_z': median_pose[2],
-                                'pitch_x': median_pose[3],
-                                'roll_y': median_pose[4],
-                                'yaw_z': median_pose[5]}"""
+                                'quat_x': median_pose[3],
+                                'quat_y': median_pose[4],
+                                'quat_z': median_pose[5],
+                                'quat_w': median_pose[6]}
+            print(marker_id, origin, ":", median_pose_dict)
+            json_str = json.dumps(median_pose_dict, ensure_ascii=False)
+            socket.send_string(json_str)
+            frame_values = []
         
 
-    time.sleep(.1)
+    #time.sleep(.1)
 # Display the resulting frame
-    cv2.imshow("Camara", frame)
+    cv2.imshow("Camara", imutils.resize(frame, height=800, width=600))
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord("q"):
@@ -145,4 +152,3 @@ while True:
 
 cv2.destroyAllWindows()
 #vs.stop() 
-
