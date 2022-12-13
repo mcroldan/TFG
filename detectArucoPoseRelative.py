@@ -37,25 +37,17 @@ path = '.'
 dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 params = cv2.aruco.DetectorParameters_create()
 Poses = {}
-origin = 26
+origin = -1
 frame_values = []
 
 while True:
-    # Loading the image / camera frame
-
-    #path = './examples/'
-    #frame = cv2.imread(path + 'Z30cm.JPEG')
     frame = vs.read()
     frame = imutils.resize(frame, height=1920, width=1080)
-    #frame = cv2.imread(path + 'toy2-camera.PNG')
 
     (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, dict, parameters=params, cameraMatrix=mtx, distCoeff=dst)
 
     utils.drawMarkerFeatures(frame, rejected, (0,0,255))
     utils.drawMarkerFeatures(frame, corners, (0,255,0))
-
-    #frame = outliers.applyHarrisToUndistortedImg(outliers.solveDistortedImage(frame, corners))
-
 
     if len(corners) > 0:
         # If we don't have a world origin, we set it to be the first market we can find
@@ -71,7 +63,6 @@ while True:
 
         for marker_index, marker_id in enumerate(ids):
             if not marker_id[0] == origin:
-                #print("Looking into", marker_id[0])
                 if not marker_id[0] in Poses:   
                     found_index = 0
                     Found = False
@@ -86,49 +77,27 @@ while True:
                     if ids[found_index][0] == origin:
                         # We found the world origin, so we can calculate the pose from the marker directly
                         Poses[ids[marker_index][0]] = utils.calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=Debug_Markers)
-                        print("Direct")
-                        #print(ids[marker_index][0])
-                        #print(Poses[ids[marker_index][0]])
-                        #break
+
                     elif ids[found_index][0] in Poses:
                         # We found another marker with its pose relative to the origin already calculated. We can concatenate transformations to get the pose we need
                         Poses[ids[marker_index][0]] = utils.calcPoseIndirectly(tvecs, rvecs, marker_index, found_index, Poses, ids, Debug=Debug_Markers)
-                        print("Indirect")
-                        #print(ids[marker_index][0])
-                        #print(Poses[ids[marker_index][0]])
-                        #break
-                    #else:
-                        # We didn't find anything, so we can't do any operation
-                    #    break
+
                 
                 # We aren't currently on the origin, but we have the pose of the current marker to the origin already calculated. That said, we can compute the pose of the
                 # camera with that relative pose.
-                #print("Indirect, Origin:{}".format(origin))
-                pose_dict = 0
                 try:
-                    _, pose_dict, pose_dict_quat = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
+                    _, pose_dict_quat = utils.calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug=Debug_Camera)
                 except TypeError:
                     print("")
-                #print(ids[marker_index][0])
-                #print(Poses[ids[marker_index][0]])
             else:
-                #print("Direct, Origin:{}".format(origin))
-                _, pose_dict, pose_dict_quat = utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
-                #print(ids[marker_index][0])
+                _, pose_dict_quat = utils.calcCameraPoseDirectly(tvecs, rvecs, marker_index, ids, Debug=Debug_Camera)
             
-            if pose_dict != 0:
-                pose_dict_quat = utils.rectifyPoseForUnity(pose_dict_quat)
+            if pose_dict_quat != 0:
+                pose_dict_quat = utils.roundPose(pose_dict_quat)
                 frame_values.append(list(pose_dict_quat.values()))
 
-                """print(marker_id, origin, ":", pose_dict_quat)
-                json_str = json.dumps(pose_dict_quat, ensure_ascii=False)
-                socket.send_string(json_str)
-                #frame_values.append(list(pose_dict.values()))"""
-
-        if len(frame_values) >= 10:
-            #print(frame_values)
+        if len(frame_values) >= 8:
             median_pose = np.median(np.array(frame_values), axis=0)
-            #print(median_pose)
             median_pose_dict =  {'pos_x': median_pose[0],
                                 'pos_y': median_pose[1],
                                 'pos_z': median_pose[2],
@@ -142,7 +111,6 @@ while True:
             frame_values = []
         
 
-    #time.sleep(.1)
 # Display the resulting frame
     cv2.imshow("Camara", imutils.resize(frame, height=800, width=600))
     key = cv2.waitKey(1) & 0xFF
@@ -151,4 +119,3 @@ while True:
         break
 
 cv2.destroyAllWindows()
-#vs.stop() 

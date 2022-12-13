@@ -18,21 +18,15 @@ def calcPoseDirectly(tvecs, rvecs, marker_index, found_index, marker_id, Debug=F
     pose_marker_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_marker_to_camera[0:3, 3] = tvecs[marker_index][0]
 
-    pose_marker_to_camera = correctInvertedPose(pose_marker_to_camera)
-
     pose_origin_to_camera = np.eye(4)
     pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[found_index][0]))[0]
-    pose_origin_to_camera[0:3, 3] = tvecs[found_index][0] # translation_camera_to_origin
-
-    #pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
+    pose_origin_to_camera[0:3, 3] = tvecs[found_index][0]
 
     pose_camera_to_origin = np.linalg.inv(pose_origin_to_camera)
 
     pose = pose_camera_to_origin @ pose_marker_to_camera
     if Debug:
         t_matrix_to_angles(pose, marker_id, True)
-        #print("")
-        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
     return pose
 
 def calcPoseIndirectly(tvecs, rvecs, marker_index, found_index, Poses, marker_ids, Debug=False):
@@ -50,7 +44,6 @@ def calcPoseIndirectly(tvecs, rvecs, marker_index, found_index, Poses, marker_id
 
     pose_known_to_origin = Poses[marker_ids[found_index][0]]
 
-   # pose = pose_marker_to_camera @ pose_camera_to_known @ pose_known_to_origin
     pose = pose_known_to_origin @ pose_marker_to_known
     if Debug:
         t_matrix_to_angles(pose, marker_ids[marker_index][0], True)
@@ -61,8 +54,6 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
     pose_known_to_camera = np.eye(4)
     pose_known_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_known_to_camera[0:3, 3] = tvecs[marker_index][0]
-
-    #pose_known_to_camera = correctInvertedPose(pose_known_to_camera)
 
     if not marker_id[0] in Poses:
         return
@@ -75,13 +66,7 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
 
     pose = LHMatrixFromRHMatrix(pose)
 
-    rotation_array, rotation_array_quat = t_matrix_to_angles(pose, marker_id[0], Debug)
-    pose_dict = {'pos_x': pose[0, 3],
-                 'pos_y': pose[1, 3],
-                 'pos_z': pose[2, 3],
-                 'pitch_x': rotation_array[0],
-                 'roll_y': rotation_array[1],
-                 'yaw_z': rotation_array[2]}
+    rotation_array_quat = t_matrix_to_angles(pose, marker_id[0], Debug)
 
     pose_dict_quat = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
@@ -90,14 +75,9 @@ def calcCameraPoseIndirectly(tvecs, rvecs, marker_index, Poses, marker_id, Debug
                  'quat_y': rotation_array_quat[1],
                  'quat_z': rotation_array_quat[2],
                  'quat_w': rotation_array_quat[3]}
-    if pose_dict_quat: #and pose_dict_quat['quat_w'] > 0.009:
-
-        print("\nINLIER:\n", pose_dict_quat, "\n", pose_dict, "\n")
-        #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-        return pose, pose_dict, pose_dict_quat
+    if pose_dict_quat:
+        return pose, pose_dict_quat
     else:
-        if pose_dict_quat['quat_w'] <= 0.009:
-            print("\nDETECTADO ERROR:\n", pose_dict_quat, "\n", pose_dict, "\n")
         return 0, 0, 0
 
 def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
@@ -106,19 +86,11 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
     pose_origin_to_camera[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[marker_index][0]))[0]
     pose_origin_to_camera[0:3, 3] = tvecs[marker_index][0]
 
-    #pose_origin_to_camera = correctInvertedPose(pose_origin_to_camera)
-
     pose = np.linalg.inv(pose_origin_to_camera)
 
     pose = LHMatrixFromRHMatrix(pose)
 
-    rotation_array, rotation_array_quat = t_matrix_to_angles(pose, marker_ids[marker_index][0], Debug)
-    pose_dict = {'pos_x': pose[0, 3],
-                 'pos_y': pose[1, 3],
-                 'pos_z': pose[2, 3],
-                 'pitch_x': rotation_array[0],
-                 'roll_y': rotation_array[1],
-                 'yaw_z': rotation_array[2]}
+    rotation_array_quat = t_matrix_to_angles(pose, marker_ids[marker_index][0], Debug)
 
     pose_dict_quat = {'pos_x': pose[0, 3],
                  'pos_y': pose[1, 3],
@@ -128,16 +100,9 @@ def calcCameraPoseDirectly(tvecs, rvecs, marker_index, marker_ids, Debug=False):
                  'quat_z': rotation_array_quat[2],
                  'quat_w': rotation_array_quat[3]}
 
-    #print("")
-    #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-    if pose_dict_quat: #and pose_dict_quat['quat_w'] > 0.009:
-
-        #print("")
-    #t_matrix_to_angles(np.linalg.inv(pose_marker_to_camera), marker_id, True)
-        return pose, pose_dict, pose_dict_quat
+    if pose_dict_quat:
+        return pose, pose_dict_quat
     else:
-        if pose_dict_quat['quat_w'] <= 0.009:
-            print("\nDETECTADO ERROR:\n", pose_dict_quat, "\n", pose_dict, "\n")
         return 0, 0, 0
     
 def euler_from_quaternion(x, y, z, w):
@@ -191,7 +156,7 @@ def t_matrix_to_angles(pose, marker_id, Debug=False):
         print("pitch_y: {}".format(pitch_y))
         print("yaw_z: {}".format(yaw_z))
         print()
-    return([roll_x, pitch_y, yaw_z], [quat[0], quat[1], quat[2], quat[3]])
+    return([quat[0], quat[1], quat[2], quat[3]])
 
 # (0,0,255) = red
 # (255,0,0) = green
@@ -217,52 +182,14 @@ def drawMarkerFeatures(img, corners, color):
 def cross(a:np.ndarray,b:np.ndarray)->np.ndarray:
     return np.cross(a, b)
 
-def correctInvertedPose(Pose):
-    T = Pose[0:3, 3]
-    R = Pose[0:3, 0:3]
-
-    if 0 < R[1,1] < 1:
-        # If it gets here, the pose is flipped.
-
-        # Flip the axes. E.g., Y axis becomes [-y0, -y1, y2].
-        R *= np.array([
-            [ 1, -1,  1],
-            [ 1, -1,  1],
-            [-1,  1, -1],
-        ])
-        
-        # Fixup: rotate along the plane spanned by camera's forward (Z) axis and vector to marker's position
-        forward = np.array([0, 0, 1])
-        tnorm = T / np.linalg.norm(T)
-        axis = cross(tnorm, forward)
-        print("AGUA")
-        angle = -2*math.acos(tnorm @ forward)
-        R = cv2.Rodrigues(angle * axis)[0] @ R
-    
-    Pose[0:3, 3] = T
-    Pose[0:3, 0:3] = R
-    return Pose
-
 def decimalToBinary(n):  
     return bin(n).replace("0b", "")      
 
-def rectifyPoseForUnity(pose_dict):
+def roundPose(pose_dict):
     # Z coord is inverted in Unity reference system. There exists a 180º offset in pitch_x. 
     # pose_dict = {pos_x, pos_y, pos_z, pitch_x, roll_y, yaw_z}
     for k, v in pose_dict.items():
         pose_dict[k] = round(v, 3)
-
-    #pose_dict['pos_z'] = 0 - pose_dict['pos_z']
-    #pose_dict['pitch_x'] -= 180
-    #pose_dict['yaw_z'] = (pose_dict['yaw_z'] + 180)
-    #pose_dict['roll_y'] = (pose_dict['roll_y'] + 180)
-
-        #pose_dict['pos_x'] = 0 - pose_dict['pos_x']
-    #pose_dict['pos_y'] = 0 - pose_dict['pos_y']
-    #pose_dict['pos_z'] = 0 - pose_dict['pos_z']
-    #pose_dict['pitch_x'] += 180
-    #pose_dict['roll_y'] += 180
-    #pose_dict['yaw_z'] += 180
 
     return pose_dict
 
