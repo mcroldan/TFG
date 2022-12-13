@@ -1,4 +1,3 @@
-from multiprocessing.connection import wait
 import cv2
 import time
 from imutils.video import VideoStream
@@ -6,8 +5,15 @@ import imutils
 import json
 import numpy as np
 import zmq
-
+import argparse
 import utils.utils as utils
+
+parser = argparse.ArgumentParser(description='Parameters for movement detection system')
+parser.add_argument('-s', '--size', dest='size', required=True, type=float, help='Side length of ArUco Markers  (in meters)')
+parser.add_argument('-c', '--calibration', dest='calibration', required=True, type=str, help='File path with previously calculated calibration parameters (with camera_calibration.py)')
+
+args = parser.parse_args()
+calibrationFile = args.calibration if args.calibration else './calibration_chessboard.yaml'
 
 # We start the ZeroMQ socket to communicate with Unity. Python will be the client, which continously sends a 6x1 int array [coord_x, coord_y, coord_z, pitch_x, roll_y, yaw_z]
 context = zmq.Context()
@@ -23,12 +29,12 @@ time.sleep(2.0)
 
 # Loading up the parameters obtained in the previous camera calibration
 cv_file = cv2.FileStorage(
-    'calibration_chessboard_new_camera.yaml', cv2.FILE_STORAGE_READ) 
+    calibrationFile, cv2.FILE_STORAGE_READ) 
 mtx = cv_file.getNode('K').mat()
 dst = cv_file.getNode('D').mat()
 cv_file.release()
 
-aruco_marker_side_length = 0.037 #0.08
+aruco_marker_side_length = args.size # if args.size else 0.037 # 0.037
 Debug_Markers = False
 Debug_Camera = False
 
