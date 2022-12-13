@@ -12,6 +12,12 @@ from __future__ import print_function # Python 2/3 compatibility
 import cv2 # Import the OpenCV library to enable computer vision
 import numpy as np # Import the NumPy scientific computing library
 import glob # Used to get retrieve files that have a specified pattern
+import argparse
+
+parser = argparse.ArgumentParser(description='Parameters for I/O in calibration')
+parser.add_argument('-s', '--size', dest='size', required=True, type=float, help='Side length of Chessboard squares  (in meters)')
+
+args = parser.parse_args()
  
 # Project: Camera Calibration Using Python and OpenCV
 # Date created: 12/19/2021
@@ -22,7 +28,7 @@ number_of_squares_X = 10 # Number of chessboard squares along the x-axis
 number_of_squares_Y = 7  # Number of chessboard squares along the y-axis
 nX = number_of_squares_X - 1 # Number of interior corners along x-axis
 nY = number_of_squares_Y - 1 # Number of interior corners along y-axis
-square_size = 0.025 # Size, in meters, of a square side 
+square_size = args.size # Size, in meters, of a square side 
   
 # Set termination criteria. We stop either when an accuracy is reached or when
 # we have finished a certain number of iterations.
@@ -46,7 +52,7 @@ image_points = []
 def main():
       
   # Get the file path for images in the current directory
-  images = glob.glob('./calibracion_unity/*.PNG')
+  images = glob.glob('./calibration/*.jpg')
       
   # Go through each chessboard image, one by one
   for image_file in images:
@@ -89,13 +95,13 @@ def main():
                                                     None)
  
   # Save parameters to a file
-  cv_file = cv2.FileStorage('calibration_chessboard_unity.yaml', cv2.FILE_STORAGE_WRITE)
+  cv_file = cv2.FileStorage('calibration_chessboard.yaml', cv2.FILE_STORAGE_WRITE)
   cv_file.write('K', mtx)
   cv_file.write('D', dist)
   cv_file.release()
   
   # Load the parameters from the saved file
-  cv_file = cv2.FileStorage('calibration_chessboard_unity.yaml', cv2.FILE_STORAGE_READ) 
+  cv_file = cv2.FileStorage('calibration_chessboard.yaml', cv2.FILE_STORAGE_READ) 
   mtx = cv_file.getNode('K').mat()
   dst = cv_file.getNode('D').mat()
   cv_file.release()
