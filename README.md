@@ -1,5 +1,4 @@
-# TFG
-Motion transfer system, from a physical camera to a virtual one
+# Motion transfer system, from a physical camera to a virtual one
 
 In order to run the motion transfer system, you will need both Python 3.9.2 + dependencies, and Unity installed in your computer.
 
