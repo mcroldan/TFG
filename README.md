@@ -1,6 +1,6 @@
 # Motion transfer system, from a physical camera to a virtual one
 
-In order to run the motion transfer system, you will need both Python 3.9.2 + dependencies, and Unity installed in your computer.
+In order to run the motion transfer system, you will need both Python 3.9.2 dependencies, and Unity 2022.1.20f1 installed in your computer.
 
 1. Clone the repository in your preferred folder.
 
