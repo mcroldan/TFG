@@ -49,23 +49,18 @@ public class CameraMove : MonoBehaviour {
      { 
      //multiplying the current rotation with the input axis values
      m_camRot = m_camRot* Quaternion.Euler(-Input.GetAxis("Mouse Y")*MouseXSens,Input.GetAxis("Mouse X")*MouseYSens,0f);
-     //m_Cam_parentRot= m_Cam_parentRot * Quaternion.Euler(0f,);
-     //setting the localRotation values to the desired rotation values
      transform.localRotation = m_camRot; 
      transform.eulerAngles = new Vector3(transform.eulerAngles.x, transform.eulerAngles.y, 0f);
-     //cam_parent.localRotation = m_Cam_parentRot; 
      }
      void MoveThecamera()
      {
      //taking horizpontal input into the horizontal variable
      horizontal = Input.GetAxis("Horizontal");
-     //changing the parent position based on the camera’s transform.right
-     //transform.right also consider rotation too
+     //transform.right is also considered a rotation
      //so that it can move in the ‘right’ direction
      cam.transform.position+= cam.transform.right*horizontal*Cam_speed*Time.deltaTime;
      //taking vertical axis into vertical variable
      vertical = Input.GetAxis("Vertical");
-     //changing the parent position based on the camera’s        transform.forward
      //transform is also 0,0,1 but it also consider rotation too
      //so that it can move in the forward direction considering the  rotation too
      cam.transform.position += cam.transform .forward * vertical * Cam_speed * Time.deltaTime;
